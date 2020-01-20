@@ -2,52 +2,60 @@ import getpass
 import pickle
 import sys
 
+
+class PWDB:
+    def __init__(self, path):
+        self.path = path
+        self._db = None
+
+    def authenticate(self, username, password):
+        if username in self._db:
+            if password == self._db[username]:
+                return True
+        return False
+
+    def add_user(self, username, password):
+        if username not in self._db:
+            self._db[username] = password
+
+    def _read_pwdb(self):
+        try:
+            with open(self.path, "rb") as h:
+                self._db = pickle.load(h)
+        except FileNotFoundError:
+            self._db = {}
+
+    def _write_pwdb(self):
+        with open(self.path, "wb") as h:
+            pickle.dump(self._db, h)
+
+    def __enter__(self):
+        self._read_pwdb()
+        return self
+
+    def __exit__(self, *args):
+        self._write_pwdb()
+
+
 def get_credentials():
-    username = input('Enter your username: ')
-    password = getpass.getpass('Enter your password: ')
+    username = input("Enter your username: ")
+    password = getpass.getpass("Enter your password: ")
     return username, password
 
-def authenticate(username, password, pwdb):
-    if username in pwdb:
-        if password == pwdb[username]:
-            return True
-    return False
 
-def read_pwdb(pwdb_file):
-    pwdb_file.seek(0)
-    pwdb = pickle.load(pwdb_file)
-    return pwdb
+if __name__ == "__main__":
+    DEFAULT_PWDB = "pwdb.pkl"
 
-def write_pwdb(pwdb, pwdb_file):
-    pwdb_file.seek(0)
-    pickle.dump(pwdb, pwdb_file)
+    with PWDB(DEFAULT_PWDB) as pwdb:
+        username, password = get_credentials()
 
-def add_user(username, password, pwdb):
-    pwdb[username] = password
-    return pwdb
+        if pwdb.authenticate(username, password):
+            print("Successfull authentication", username, password)
+        else:
+            ans = input(
+                "User not known or password is wrong. Do you want to add the "
+                "user to the password database? [y/n]"
+            )
 
-if __name__ == '__main__':
-    DEFAULT_PWDB = 'pwdb.pkl'
-
-    try:
-        pwdb_file = open(DEFAULT_PWDB, 'rb+')
-    except FileNotFoundError:
-        pwdb_file = open(DEFAULT_PWDB, 'wb')
-        pickle.dump({}, pwdb_file)
-        pwdb_file.close()
-        print('Created empty pw database!')
-        sys.exit(0)
-
-    username, password = get_credentials()
-    pwdb = read_pwdb(pwdb_file)
-
-    if authenticate(username, password, pwdb):
-        print('Successfull authentication', username, password)
-    else:
-        ans = input('User not known or password is wrong. Do you want to add the '
-                    'user to the password database? [y/n]')
-
-        if ans == 'y':
-            add_user(username, password, pwdb)
-            write_pwdb(pwdb, pwdb_file)
-
+            if ans == "y":
+                pwdb.add_user(username, password)
