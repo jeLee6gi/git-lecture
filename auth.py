@@ -1,3 +1,4 @@
+from crypt import crypt
 import getpass
 import pickle
 import sys
@@ -5,18 +6,19 @@ import sys
 
 class PWDB:
     def __init__(self, path):
+        self.salt = "$6$DzRM4CMIlJMyjc40"
         self.path = path
         self._db = None
 
     def authenticate(self, username, password):
         if username in self._db:
-            if password == self._db[username]:
+            if crypt(password, salt=self.salt) == self._db[username]:
                 return True
         return False
 
     def add_user(self, username, password):
         if username not in self._db:
-            self._db[username] = password
+            self._db[username] = crypt(password, salt=self.salt)
 
     def _read_pwdb(self):
         try:
